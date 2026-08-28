@@ -14,6 +14,18 @@ Get-ChildItem Function: | Where-Object -Property Name -In -Value $aliases | ForE
     Set-Alias -Name $_.Name -Value Local:$($_.Name) -Scope Script
 }
 
+# Built-in command aliases (user-defined aliases via 'scoop alias add' take precedence).
+$builtInAliases = @{
+    'in'     = 'install'
+    'remove' = 'uninstall'
+    'se'     = 'search'
+    'up'     = 'update'
+    'rm'     = 'uninstall'
+}
+if ($subCommand -and $builtInAliases.ContainsKey($subCommand) -and ($subCommand -notin (commands))) {
+    $subCommand = $builtInAliases[$subCommand]
+}
+
 switch ($subCommand) {
     ({ $subCommand -in @($null, '-h', '--help', '/?') }) {
         exec 'help'
