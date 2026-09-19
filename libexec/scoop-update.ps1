@@ -59,13 +59,7 @@ if (($PSVersionTable.PSVersion.Major) -lt 5) {
     Write-Output 'Upgrade PowerShell: https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-core-on-windows'
     break
 }
-$show_update_log = get_config SHOW_UPDATE_LOG $true
-
 function Sync-Scoop {
-    [CmdletBinding()]
-    Param (
-        [Switch]$Log
-    )
     # Test if Scoop Core is hold
     if (Test-ScoopCoreOnHold) {
         return
@@ -74,6 +68,8 @@ function Sync-Scoop {
     # check for git
     if (!(Test-GitAvailable)) { abort "Scoop uses Git to update itself. Run 'scoop install git' and try again." }
 
+    $depth = get_config BUCKET_GIT_DEPTH 10
+
     Write-Host 'Updating Scoop...'
     $currentdir = versiondir 'scoop' 'current'
     if (!(Test-Path "$currentdir\.git")) {
@@ -81,7 +77,7 @@ function Sync-Scoop {
         $olddir = "$currentdir\..\old"
 
         # get git scoop
-        Invoke-Git -ArgumentList @('clone', '-q', $configRepo, '--branch', $configBranch, '--single-branch', $newdir)
+        Invoke-Git -ArgumentList @('clone', '-q', $configRepo, '--branch', $configBranch, '--single-branch', '--depth', $depth, $newdir)
 
         # check if scoop was successful downloaded
         if (!(Test-Path "$newdir\bin\scoop.ps1")) {
@@ -102,7 +98,6 @@ function Sync-Scoop {
             Remove-Item "$currentdir\..\old" -Recurse -Force -ErrorAction SilentlyContinue
         }
 
-        $previousCommit = Invoke-Git -Path $currentdir -ArgumentList @('rev-parse', 'HEAD')
         $currentRepo = Invoke-Git -Path $currentdir -ArgumentList @('config', 'remote.origin.url')
         $currentBranch = Invoke-Git -Path $currentdir -ArgumentList @('branch')
 
@@ -130,19 +125,17 @@ function Sync-Scoop {
             # Reset git fetch refs, so that it can fetch all branches (GH-3368)
             Invoke-Git -Path $currentdir -ArgumentList @('config', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*')
             # fetch remote branch
-            Invoke-Git -Path $currentdir -ArgumentList @('fetch', '--force', 'origin', "refs/heads/$configBranch`:refs/remotes/origin/$configBranch", '-q')
+            Invoke-Git -Path $currentdir -ArgumentList @('fetch', '--force', '--depth', $depth, 'origin', "refs/heads/$configBranch`:refs/remotes/origin/$configBranch", '-q')
             # checkout and track the branch
             Invoke-Git -Path $currentdir -ArgumentList @('checkout', '-B', $configBranch, '-t', "origin/$configBranch", '-q')
             # reset branch HEAD
             Invoke-Git -Path $currentdir -ArgumentList @('reset', '--hard', "origin/$configBranch", '-q')
         } else {
-            Invoke-Git -Path $currentdir -ArgumentList @('pull', '-q')
+            Invoke-Git -Path $currentdir -ArgumentList @('fetch', '--depth', $depth, 'origin', "+refs/heads/$configBranch`:refs/remotes/origin/$configBranch", '-q')
+            Invoke-Git -Path $currentdir -ArgumentList @('reset', '--hard', "origin/$configBranch", '-q')
         }
 
         $res = $lastexitcode
-        if ($Log) {
-            Invoke-GitLog -Path $currentdir -CommitHash $previousCommit
-        }
 
         if ($res -ne 0) {
             abort 'Update failed.'
@@ -153,9 +146,6 @@ function Sync-Scoop {
 }
 
 function Sync-Bucket {
-    Param (
-        [Switch]$Log
-    )
     Write-Host 'Updating Buckets...'
 
     if (!(Test-Path (Join-Path (Find-BucketDirectory 'main' -Root) '.git'))) {
@@ -200,9 +190,6 @@ function Sync-Bucket {
             $branch = Invoke-Git -Path $bucketLoc -ArgumentList @('rev-parse', '--abbrev-ref', 'HEAD')
             Invoke-Git -Path $bucketLoc -ArgumentList @('fetch', '--depth', $using:depth, 'origin', "+refs/heads/$branch`:refs/remotes/origin/$branch", '-q')
             Invoke-Git -Path $bucketLoc -ArgumentList @('reset', '--hard', "origin/$branch", '-q')
-            if ($using:Log) {
-                Invoke-GitLog -Path $bucketLoc -Name $name -CommitHash $previousCommit
-            }
             if (get_config USE_SQLITE_CACHE) {
                 Invoke-Git -Path $bucketLoc -ArgumentList @('diff', '--name-status', $previousCommit) | ForEach-Object {
                     $status, $file = $_ -split '\s+', 2
@@ -233,9 +220,6 @@ function Sync-Bucket {
             $branch = Invoke-Git -Path $bucketLoc -ArgumentList @('rev-parse', '--abbrev-ref', 'HEAD')
             Invoke-Git -Path $bucketLoc -ArgumentList @('fetch', '--depth', $depth, 'origin', "+refs/heads/$branch`:refs/remotes/origin/$branch", '-q')
             Invoke-Git -Path $bucketLoc -ArgumentList @('reset', '--hard', "origin/$branch", '-q')
-            if ($Log) {
-                Invoke-GitLog -Path $bucketLoc -Name $name -CommitHash $previousCommit
-            }
             if (get_config USE_SQLITE_CACHE) {
                 Invoke-Git -Path $bucketLoc -ArgumentList @('diff', '--name-status', $previousCommit) | ForEach-Object {
                     $status, $file = $_ -split '\s+', 2
@@ -402,8 +386,8 @@ if (-not ($apps -or $all)) {
         error 'scoop update: --no-cache is invalid when <app> is not specified.'
         exit 1
     }
-    Sync-Scoop -Log:$show_update_log
-    Sync-Bucket -Log:$show_update_log
+    Sync-Scoop
+    Sync-Bucket
     set_config LAST_UPDATE ([System.DateTime]::Now.ToString('o')) | Out-Null
     success 'Scoop was updated successfully!'
 } else {
@@ -417,8 +401,8 @@ if (-not ($apps -or $all)) {
     $apps_param = $apps
 
     if ($updateScoop) {
-        Sync-Scoop -Log:$show_update_log
-        Sync-Bucket -Log:$show_update_log
+        Sync-Scoop
+        Sync-Bucket
         set_config LAST_UPDATE ([System.DateTime]::Now.ToString('o')) | Out-Null
         success 'Scoop was updated successfully!'
     }

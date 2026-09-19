@@ -37,7 +37,7 @@ Scoop 是一个面向 Windows 的命令行软件包管理器，类似 macOS 的 
 | 一键安装本版本 | 直接运行本仓库的 `install.ps1`，无需先装官方版再换源 | [安装](#安装) |
 | 默认源指向本项目 | 装好后正常执行 `scoop update`，更新的就是本修改版 | [安装](#安装) |
 | GitHub / SourceForge 下载加速 | `scoop config github_mirror_url <前缀>`、`scoop config sourceforge_mirror_url <前缀>` | [配置国内加速](#配置国内加速) |
-| bucket 浅克隆 | 默认自动生效，可通过 `BUCKET_GIT_DEPTH` 调整深度 | [常用配置一览](#常用配置一览) |
+| bucket / Scoop 本体浅克隆 | 默认自动生效，可通过 `BUCKET_GIT_DEPTH` 调整深度 | [常用配置一览](#常用配置一览) |
 | 内置命令别名 | `scoop in`、`scoop rm`、`scoop se`、`scoop up` 直接可用 | [命令别名](#命令别名) |
 
 各改进的具体用法见下方对应章节。
@@ -196,7 +196,7 @@ scoop config rm <键>           # 删除配置
 | --- | --- |
 | `github_mirror_url` | GitHub 下载加速前缀（本修改版新增） |
 | `sourceforge_mirror_url` | SourceForge 下载加速前缀（本修改版新增） |
-| `BUCKET_GIT_DEPTH` | bucket 浅克隆深度，默认 10（本修改版新增） |
+| `BUCKET_GIT_DEPTH` | bucket 与 Scoop 本体的浅克隆深度，默认 10（本修改版新增） |
 | `SCOOP_REPO` | Scoop 本体仓库，本版默认指向本项目 |
 | `SCOOP_BRANCH` | Scoop 本体分支，本版默认 `main` |
 | `proxy` | HTTP 代理，如 `scoop config proxy 127.0.0.1:7890` |

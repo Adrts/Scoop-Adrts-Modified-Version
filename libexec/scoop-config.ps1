@@ -64,9 +64,6 @@
 # force_update: $true|$false
 #       Force apps updating to bucket's version.
 #
-# show_update_log: $true|$false
-#       Do not show changed commits on 'scoop update'
-#
 # show_manifest: $true|$false
 #       Displays the manifest of every app that's about to
 #       be installed, then asks user if they wish to proceed.
